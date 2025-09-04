@@ -1,10 +1,20 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import type { ParsedData, DataRow, ViewType, AnalysisType } from './types';
+import type { ParsedData, DataRow, ViewType, AnalysisType, ColumnMapping, ColumnRole } from './types';
 import DataTable from './components/DataTable';
 import UploadIcon from './components/icons/UploadIcon';
 import VisualizationSidebar from './components/VisualizationSidebar';
-import CostVsGenderAnalysis from './components/CostVsGenderAnalysis';
+import AnalysisDisplay from './components/CostVsGenderAnalysis';
 import SidebarIcon from './components/icons/SidebarIcon';
+
+const initialMapping: ColumnMapping = {
+    date: null,
+    cost: null,
+    revenue: null,
+    gender: null,
+    device: null,
+    age: null,
+};
 
 const App: React.FC = () => {
   const [dataFile, setDataFile] = useState<File | null>(null);
@@ -16,8 +26,36 @@ const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<'table' | 'analysis'>('table');
   const [activeAnalyses, setActiveAnalyses] = useState<AnalysisType[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [columnMapping, setColumnMapping] = useState<ColumnMapping>(initialMapping);
+  const [mappingHeader, setMappingHeader] = useState<string | null>(null);
 
   const dataFileInputRef = useRef<HTMLInputElement>(null);
+
+  const autoMapColumns = useCallback((headers: string[]) => {
+    const mapping: ColumnMapping = { ...initialMapping };
+    const usedHeaders = new Set<string>();
+
+    const findAndMap = (role: ColumnRole, keywords: string[]) => {
+      for (const header of headers) {
+        if (usedHeaders.has(header)) continue;
+        const lowerHeader = header.toLowerCase();
+        if (keywords.some(kw => lowerHeader.includes(kw))) {
+          mapping[role] = header;
+          usedHeaders.add(header);
+          return;
+        }
+      }
+    };
+
+    findAndMap('date', ['date', 'day']);
+    findAndMap('cost', ['cost', 'spend']);
+    findAndMap('revenue', ['revenue']);
+    findAndMap('gender', ['gender']);
+    findAndMap('device', ['device']);
+    findAndMap('age', ['age']);
+
+    setColumnMapping(mapping);
+  }, []);
 
   const handleDataFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -31,6 +69,8 @@ const App: React.FC = () => {
         setViewMode('table');
         setActiveAnalyses([]);
         setIsSidebarOpen(true);
+        setColumnMapping(initialMapping);
+        setMappingHeader(null);
 
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -61,6 +101,7 @@ const App: React.FC = () => {
               }, {} as DataRow);
             });
             setParsedData({ headers, rows });
+            autoMapColumns(headers);
           } catch (err) {
             setError('Failed to parse data file. Please ensure it is a valid CSV/TXT file.');
             setParsedData(null);
@@ -71,7 +112,7 @@ const App: React.FC = () => {
         }
         reader.readAsText(file);
     }
-  }, []);
+  }, [autoMapColumns]);
 
   useEffect(() => {
     if (!parsedData) {
@@ -84,19 +125,20 @@ const App: React.FC = () => {
       return;
     }
     
-    const parseDate = (dateString: string) => {
-        if (!/^\d{2}-\d{2}-\d{4}$/.test(dateString)) return new Date(dateString);
-        const [day, month, year] = dateString.split('-');
-        return new Date(`${year}-${month}-${day}`);
-    };
-    
-    if (!parsedData.headers.includes('Day')) {
-        setError('Data requires a "Day" column for date filtering (DD-MM-YYYY or YYYY-MM-DD). Filtering disabled.');
+    if (!columnMapping.date) {
+        setError('Please map a "Date" column to enable filtering by date.');
         setFilteredData(parsedData.rows);
         return;
     } else {
         setError(null);
     }
+
+    const parseDate = (dateString: string) => {
+        if (!dateString) return new Date('invalid');
+        if (!/^\d{2}-\d{2}-\d{4}$/.test(dateString)) return new Date(dateString);
+        const [day, month, year] = dateString.split('-');
+        return new Date(`${year}-${month}-${day}`);
+    };
 
     const start = startDate ? new Date(startDate) : null;
     const end = endDate ? new Date(endDate) : null;
@@ -105,7 +147,7 @@ const App: React.FC = () => {
     if(end) end.setUTCHours(23,59,59,999);
 
     const filtered = parsedData.rows.filter(row => {
-      const day = parseDate(row.Day);
+      const day = parseDate(row[columnMapping.date!]);
       if (isNaN(day.getTime())) return false;
       if (start && day < start) return false;
       if (end && day > end) return false;
@@ -113,7 +155,7 @@ const App: React.FC = () => {
     });
 
     setFilteredData(filtered);
-  }, [startDate, endDate, parsedData]);
+  }, [startDate, endDate, parsedData, columnMapping.date]);
   
   const handlePresetChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const preset = e.target.value;
@@ -165,6 +207,30 @@ const App: React.FC = () => {
     e.target.value = '';
   };
   
+  const handleMapColumn = (header: string, role: ColumnRole) => {
+    setColumnMapping(prev => {
+        const newMapping = { ...prev };
+        // Clear any other column that has this role
+        (Object.keys(newMapping) as ColumnRole[]).forEach(r => {
+            if (newMapping[r] === header) newMapping[r] = null;
+            if (r === role) newMapping[r] = header;
+        });
+        return newMapping;
+    });
+    setMappingHeader(null);
+  };
+  
+  const handleClearColumnMapping = (header: string) => {
+    setColumnMapping(prev => {
+        const newMapping = { ...prev };
+         (Object.keys(newMapping) as ColumnRole[]).forEach(r => {
+            if (newMapping[r] === header) newMapping[r] = null;
+        });
+        return newMapping;
+    });
+    setMappingHeader(null);
+  };
+  
   const toggleAnalysis = (analysis: AnalysisType) => {
     setViewMode('analysis');
     setActiveAnalyses(prev => 
@@ -190,7 +256,15 @@ const App: React.FC = () => {
     }
     
     if (viewMode === 'table') {
-        return <DataTable data={parsedData} filteredRows={filteredData} />;
+        return <DataTable 
+                    data={parsedData} 
+                    filteredRows={filteredData} 
+                    columnMapping={columnMapping}
+                    mappingHeader={mappingHeader}
+                    onHeaderClick={setMappingHeader}
+                    onMapColumn={handleMapColumn}
+                    onClearMapping={handleClearColumnMapping}
+                />;
     }
 
     if (viewMode === 'analysis') {
@@ -206,11 +280,17 @@ const App: React.FC = () => {
                 {activeAnalyses.map(analysisType => {
                     switch (analysisType) {
                         case 'cost_vs_gender':
-                            return <CostVsGenderAnalysis key={analysisType} data={filteredData} categoryKey="Gender" valueKey="Cost" title="Cost Distribution by Gender" />;
+                            return <AnalysisDisplay key={analysisType} data={filteredData} categoryKey={columnMapping.gender!} valueKey={columnMapping.cost!} title="Cost Distribution by Gender" />;
                         case 'cost_vs_device':
-                            return <CostVsGenderAnalysis key={analysisType} data={filteredData} categoryKey="Device" valueKey="Cost" title="Cost Distribution by Device" />;
+                            return <AnalysisDisplay key={analysisType} data={filteredData} categoryKey={columnMapping.device!} valueKey={columnMapping.cost!} title="Cost Distribution by Device" />;
                         case 'cost_vs_age':
-                            return <CostVsGenderAnalysis key={analysisType} data={filteredData} categoryKey="Age" valueKey="Cost" title="Cost Distribution by Age" />;
+                            return <AnalysisDisplay key={analysisType} data={filteredData} categoryKey={columnMapping.age!} valueKey={columnMapping.cost!} title="Cost Distribution by Age" />;
+                        case 'revenue_vs_gender':
+                            return <AnalysisDisplay key={analysisType} data={filteredData} categoryKey={columnMapping.gender!} valueKey={columnMapping.revenue!} title="Revenue Distribution by Gender" />;
+                        case 'revenue_vs_device':
+                            return <AnalysisDisplay key={analysisType} data={filteredData} categoryKey={columnMapping.device!} valueKey={columnMapping.revenue!} title="Revenue Distribution by Device" />;
+                        case 'revenue_vs_age':
+                            return <AnalysisDisplay key={analysisType} data={filteredData} categoryKey={columnMapping.age!} valueKey={columnMapping.revenue!} title="Revenue Distribution by Age" />;
                         default:
                             return null;
                     }
@@ -219,7 +299,15 @@ const App: React.FC = () => {
         );
     }
     
-    return <DataTable data={parsedData} filteredRows={filteredData} />;
+    return <DataTable 
+                data={parsedData} 
+                filteredRows={filteredData} 
+                columnMapping={columnMapping}
+                mappingHeader={mappingHeader}
+                onHeaderClick={setMappingHeader}
+                onMapColumn={handleMapColumn}
+                onClearMapping={handleClearColumnMapping}
+           />;
   }
 
   return (
@@ -229,7 +317,7 @@ const App: React.FC = () => {
           Data Analyzer
         </h1>
         <p className="text-gray-400 mt-1 text-sm">
-          Upload, filter, and analyze your data instantly.
+          Upload, map, filter, and analyze your data instantly.
         </p>
       </header>
       
@@ -247,12 +335,12 @@ const App: React.FC = () => {
         <div className="h-6 w-px bg-gray-600 hidden md:block"></div>
 
         <label htmlFor="start-date" className="sr-only">Start Date</label>
-        <input type="date" id="start-date" value={startDate} onChange={e => setStartDate(e.target.value)} disabled={!parsedData} className="bg-gray-700 border-gray-600 rounded-md shadow-sm text-white focus:ring-indigo-500 focus:border-indigo-500 p-2 disabled:opacity-50 disabled:cursor-not-allowed"/>
+        <input type="date" id="start-date" value={startDate} onChange={e => setStartDate(e.target.value)} disabled={!parsedData || !columnMapping.date} className="bg-gray-700 border-gray-600 rounded-md shadow-sm text-white focus:ring-indigo-500 focus:border-indigo-500 p-2 disabled:opacity-50 disabled:cursor-not-allowed"/>
         <span className="text-gray-400">to</span>
         <label htmlFor="end-date" className="sr-only">End Date</label>
-        <input type="date" id="end-date" value={endDate} onChange={e => setEndDate(e.target.value)} disabled={!parsedData} className="bg-gray-700 border-gray-600 rounded-md shadow-sm text-white focus:ring-indigo-500 focus:border-indigo-500 p-2 disabled:opacity-50 disabled:cursor-not-allowed"/>
+        <input type="date" id="end-date" value={endDate} onChange={e => setEndDate(e.target.value)} disabled={!parsedData || !columnMapping.date} className="bg-gray-700 border-gray-600 rounded-md shadow-sm text-white focus:ring-indigo-500 focus:border-indigo-500 p-2 disabled:opacity-50 disabled:cursor-not-allowed"/>
         
-        <select onChange={handlePresetChange} disabled={!parsedData} defaultValue="" className="bg-gray-700 border-gray-600 rounded-md shadow-sm text-white focus:ring-indigo-500 focus:border-indigo-500 p-2 disabled:opacity-50 disabled:cursor-not-allowed appearance-none pr-8">
+        <select onChange={handlePresetChange} disabled={!parsedData || !columnMapping.date} defaultValue="" className="bg-gray-700 border-gray-600 rounded-md shadow-sm text-white focus:ring-indigo-500 focus:border-indigo-500 p-2 disabled:opacity-50 disabled:cursor-not-allowed appearance-none pr-8">
             <option value="" disabled>Select preset...</option>
             <option value="yesterday">Yesterday</option>
             <option value="last_week">Last Week</option>
@@ -277,10 +365,10 @@ const App: React.FC = () => {
         )}
       </nav>
 
-      <main className="flex-grow p-4 lg:p-6">
+      <main className="flex-grow p-4 lg:p-6" onClick={(e) => { if (!(e.target as HTMLElement).closest('[data-mapping-popover]')) setMappingHeader(null)}}>
         {error && (
-            <div className="bg-red-900/50 border border-red-700 text-red-200 px-4 py-3 rounded-lg relative mb-6" role="alert">
-                <strong className="font-bold">Error: </strong>
+            <div className="bg-yellow-900/50 border border-yellow-700 text-yellow-200 px-4 py-3 rounded-lg relative mb-6" role="alert">
+                <strong className="font-bold">Notice: </strong>
                 <span className="block sm:inline">{error}</span>
             </div>
         )}
@@ -293,7 +381,7 @@ const App: React.FC = () => {
             {parsedData && isSidebarOpen && (
                 <aside id="analysis-sidebar" className="lg:col-span-1 h-[calc(100vh-180px)] min-h-[500px]">
                     <VisualizationSidebar 
-                        headers={parsedData.headers}
+                        columnMapping={columnMapping}
                         viewMode={viewMode}
                         activeAnalyses={activeAnalyses}
                         toggleAnalysis={toggleAnalysis}

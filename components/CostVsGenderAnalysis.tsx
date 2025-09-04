@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import type { DataRow } from '../types';
 import PieChart from './PieChart';
@@ -9,7 +10,7 @@ interface AnalysisDisplayProps {
   title: string;
 }
 
-const CostVsGenderAnalysis: React.FC<AnalysisDisplayProps> = ({ data, categoryKey, valueKey, title }) => {
+const AnalysisDisplay: React.FC<AnalysisDisplayProps> = ({ data, categoryKey, valueKey, title }) => {
   const analysis = useMemo(() => {
     const categoryValue: Record<string, number> = {};
     let totalValue = 0;
@@ -110,4 +111,4 @@ const CostVsGenderAnalysis: React.FC<AnalysisDisplayProps> = ({ data, categoryKe
   )
 };
 
-export default CostVsGenderAnalysis;
+export default AnalysisDisplay;

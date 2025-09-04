@@ -1,8 +1,9 @@
+
 import React from 'react';
-import type { AnalysisType } from '../types';
+import type { AnalysisType, ColumnMapping } from '../types';
 
 interface VisualizationSidebarProps {
-  headers: string[];
+  columnMapping: ColumnMapping;
   viewMode: 'table' | 'analysis';
   activeAnalyses: AnalysisType[];
   toggleAnalysis: (analysis: AnalysisType) => void;
@@ -34,16 +35,24 @@ const AnalysisButton: React.FC<{
 };
 
 
-const VisualizationSidebar: React.FC<VisualizationSidebarProps> = ({ headers, viewMode, activeAnalyses, toggleAnalysis, showDataTable }) => {
-  const hasCost = headers.includes('Cost');
-  const canAnalyzeGender = hasCost && headers.includes('Gender');
-  const canAnalyzeDevice = hasCost && headers.includes('Device');
-  const canAnalyzeAge = hasCost && headers.includes('Age');
+const VisualizationSidebar: React.FC<VisualizationSidebarProps> = ({ columnMapping, viewMode, activeAnalyses, toggleAnalysis, showDataTable }) => {
+  const canAnalyzeGender = !!(columnMapping.cost && columnMapping.gender);
+  const canAnalyzeDevice = !!(columnMapping.cost && columnMapping.device);
+  const canAnalyzeAge = !!(columnMapping.cost && columnMapping.age);
+  const canAnalyzeRevenueGender = !!(columnMapping.revenue && columnMapping.gender);
+  const canAnalyzeRevenueDevice = !!(columnMapping.revenue && columnMapping.device);
+  const canAnalyzeRevenueAge = !!(columnMapping.revenue && columnMapping.age);
 
-  const analysisOptions: { view: AnalysisType; label: string; enabled: boolean; }[] = [
-    { view: 'cost_vs_gender', label: 'Cost vs Gender', enabled: canAnalyzeGender },
-    { view: 'cost_vs_device', label: 'Cost vs Device', enabled: canAnalyzeDevice },
-    { view: 'cost_vs_age', label: 'Cost vs Age', enabled: canAnalyzeAge },
+  const costAnalysisOptions: { view: AnalysisType; label: string; enabled: boolean; required: string[] }[] = [
+    { view: 'cost_vs_gender', label: 'Cost vs Gender', enabled: canAnalyzeGender, required: ['Cost', 'Gender'] },
+    { view: 'cost_vs_device', label: 'Cost vs Device', enabled: canAnalyzeDevice, required: ['Cost', 'Device'] },
+    { view: 'cost_vs_age', label: 'Cost vs Age', enabled: canAnalyzeAge, required: ['Cost', 'Age'] },
+  ];
+
+  const revenueAnalysisOptions: { view: AnalysisType; label: string; enabled: boolean; required: string[] }[] = [
+    { view: 'revenue_vs_gender', label: 'Revenue vs Gender', enabled: canAnalyzeRevenueGender, required: ['Revenue', 'Gender'] },
+    { view: 'revenue_vs_device', label: 'Revenue vs Device', enabled: canAnalyzeRevenueDevice, required: ['Revenue', 'Device'] },
+    { view: 'revenue_vs_age', label: 'Revenue vs Age', enabled: canAnalyzeRevenueAge, required: ['Revenue', 'Age'] },
   ];
 
   return (
@@ -59,8 +68,10 @@ const VisualizationSidebar: React.FC<VisualizationSidebarProps> = ({ headers, vi
             label="Show Data Table"
             isActive={viewMode === 'table'}
         />
-        <div className="h-px bg-gray-600"></div>
-        {analysisOptions.map(opt => (
+        
+        <div className="h-px bg-gray-600 my-3"></div>
+        <h3 className="px-1 text-xs font-bold tracking-wider text-gray-400 uppercase">Cost Analysis</h3>
+        {costAnalysisOptions.map(opt => (
             <div key={opt.view}>
                 <AnalysisButton
                     onClick={() => toggleAnalysis(opt.view)}
@@ -70,7 +81,25 @@ const VisualizationSidebar: React.FC<VisualizationSidebarProps> = ({ headers, vi
                 />
                 {!opt.enabled && (
                     <p className="mt-1 text-xs text-amber-400">
-                        Requires '{opt.label.split(' vs ')[1]}' and 'Cost' columns.
+                        Requires '{opt.required.join(`' & '`)}' columns to be mapped.
+                    </p>
+                )}
+            </div>
+        ))}
+
+        <div className="h-px bg-gray-600 my-3"></div>
+        <h3 className="px-1 text-xs font-bold tracking-wider text-gray-400 uppercase">Revenue Analysis</h3>
+        {revenueAnalysisOptions.map(opt => (
+            <div key={opt.view}>
+                <AnalysisButton
+                    onClick={() => toggleAnalysis(opt.view)}
+                    label={opt.label}
+                    isActive={activeAnalyses.includes(opt.view)}
+                    disabled={!opt.enabled}
+                />
+                {!opt.enabled && (
+                    <p className="mt-1 text-xs text-amber-400">
+                        Requires '{opt.required.join(`' & '`)}' columns to be mapped.
                     </p>
                 )}
             </div>
