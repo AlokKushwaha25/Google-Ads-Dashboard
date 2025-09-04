@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { ParsedData, DataRow, ViewType, AnalysisType, ColumnMapping, ColumnRole } from './types';
 import DataTable from './components/DataTable';
 import UploadIcon from './components/icons/UploadIcon';
 import VisualizationSidebar from './components/VisualizationSidebar';
 import AnalysisDisplay from './components/CostVsGenderAnalysis';
+import DayOfWeekAnalysis from './components/DayOfWeekAnalysis';
 import SidebarIcon from './components/icons/SidebarIcon';
 
 const initialMapping: ColumnMapping = {
@@ -14,6 +14,7 @@ const initialMapping: ColumnMapping = {
     gender: null,
     device: null,
     age: null,
+    day_of_week: null,
 };
 
 const App: React.FC = () => {
@@ -53,6 +54,7 @@ const App: React.FC = () => {
     findAndMap('gender', ['gender']);
     findAndMap('device', ['device']);
     findAndMap('age', ['age']);
+    findAndMap('day_of_week', ['day of the week', 'weekday']);
 
     setColumnMapping(mapping);
   }, []);
@@ -291,6 +293,8 @@ const App: React.FC = () => {
                             return <AnalysisDisplay key={analysisType} data={filteredData} categoryKey={columnMapping.device!} valueKey={columnMapping.revenue!} title="Revenue Distribution by Device" />;
                         case 'revenue_vs_age':
                             return <AnalysisDisplay key={analysisType} data={filteredData} categoryKey={columnMapping.age!} valueKey={columnMapping.revenue!} title="Revenue Distribution by Age" />;
+                        case 'cost_revenue_by_day':
+                             return <DayOfWeekAnalysis key={analysisType} data={filteredData} dayKey={columnMapping.day_of_week!} costKey={columnMapping.cost!} revenueKey={columnMapping.revenue!} />;
                         default:
                             return null;
                     }

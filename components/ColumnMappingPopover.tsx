@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { ColumnMapping, ColumnRole } from '../types';
 
@@ -17,6 +16,7 @@ const ROLES_TO_MAP: { role: ColumnRole; label: string }[] = [
     { role: 'gender', label: 'Gender' },
     { role: 'device', label: 'Device' },
     { role: 'age', label: 'Age' },
+    { role: 'day_of_week', label: 'Day of the Week' },
 ];
 
 const ColumnMappingPopover: React.FC<ColumnMappingPopoverProps> = ({ header, columnMapping, onMapColumn, onClearMapping, onClose }) => {

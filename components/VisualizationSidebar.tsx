@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { AnalysisType, ColumnMapping } from '../types';
 
@@ -42,6 +41,7 @@ const VisualizationSidebar: React.FC<VisualizationSidebarProps> = ({ columnMappi
   const canAnalyzeRevenueGender = !!(columnMapping.revenue && columnMapping.gender);
   const canAnalyzeRevenueDevice = !!(columnMapping.revenue && columnMapping.device);
   const canAnalyzeRevenueAge = !!(columnMapping.revenue && columnMapping.age);
+  const canAnalyzeDayOfWeek = !!(columnMapping.cost && columnMapping.revenue && columnMapping.day_of_week);
 
   const costAnalysisOptions: { view: AnalysisType; label: string; enabled: boolean; required: string[] }[] = [
     { view: 'cost_vs_gender', label: 'Cost vs Gender', enabled: canAnalyzeGender, required: ['Cost', 'Gender'] },
@@ -54,6 +54,10 @@ const VisualizationSidebar: React.FC<VisualizationSidebarProps> = ({ columnMappi
     { view: 'revenue_vs_device', label: 'Revenue vs Device', enabled: canAnalyzeRevenueDevice, required: ['Revenue', 'Device'] },
     { view: 'revenue_vs_age', label: 'Revenue vs Age', enabled: canAnalyzeRevenueAge, required: ['Revenue', 'Age'] },
   ];
+
+  const performanceAnalysisOptions: { view: AnalysisType; label: string; enabled: boolean; required: string[] }[] = [
+      { view: 'cost_revenue_by_day', label: 'Cost & Revenue by Day', enabled: canAnalyzeDayOfWeek, required: ['Cost', 'Revenue', 'Day of the Week']}
+  ]
 
   return (
     <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700 h-full flex flex-col">
@@ -69,6 +73,24 @@ const VisualizationSidebar: React.FC<VisualizationSidebarProps> = ({ columnMappi
             isActive={viewMode === 'table'}
         />
         
+        <div className="h-px bg-gray-600 my-3"></div>
+        <h3 className="px-1 text-xs font-bold tracking-wider text-gray-400 uppercase">Performance Analysis</h3>
+        {performanceAnalysisOptions.map(opt => (
+             <div key={opt.view}>
+                <AnalysisButton
+                    onClick={() => toggleAnalysis(opt.view)}
+                    label={opt.label}
+                    isActive={activeAnalyses.includes(opt.view)}
+                    disabled={!opt.enabled}
+                />
+                {!opt.enabled && (
+                    <p className="mt-1 text-xs text-amber-400">
+                        Requires '{opt.required.join(`', '`)}' columns to be mapped.
+                    </p>
+                )}
+            </div>
+        ))}
+
         <div className="h-px bg-gray-600 my-3"></div>
         <h3 className="px-1 text-xs font-bold tracking-wider text-gray-400 uppercase">Cost Analysis</h3>
         {costAnalysisOptions.map(opt => (
