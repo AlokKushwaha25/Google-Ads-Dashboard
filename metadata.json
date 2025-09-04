@@ -1,0 +1,5 @@
+{
+  "name": "Dynamic Data Visualizer",
+  "description": "Upload a data file (CSV/TXT) and a custom JavaScript logic file to generate dynamic visualizations. Filter data by date, select columns, and render charts in a new window.",
+  "requestFramePermissions": []
+}
